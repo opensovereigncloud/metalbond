@@ -13,16 +13,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
-      - uses: actions/download-artifact@v2
-        with:
-          name: metalbond_${{ inputs.version }}_${{ matrix.architecture }}
-
-      - name: debug
-        run: ls -R
-
-      - name: Checkout code
-        uses: actions/checkout@v2
      
       - name: Create Release
         id: create_release
@@ -42,6 +32,10 @@ jobs:
         uses: bruceadams/get-release@v1.2.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: metalbond_${{ inputs.version }}_${{ matrix.architecture }}
 
       - name: debug
         run: ls -R
