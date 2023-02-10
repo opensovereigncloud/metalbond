@@ -14,7 +14,7 @@ RUN make amd64
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y iproute2 ethtool wget adduser inetutils-ping
+RUN apt-get update && apt-get install -y iproute2 ethtool wget adduser inetutils-ping ipvsadm
 COPY --from=builder /workspace/target/metalbond_amd64 /usr/sbin/metalbond
 COPY --from=builder /workspace/target/html /usr/share/metalbond/html
 
