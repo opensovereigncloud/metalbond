@@ -1,5 +1,6 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+BUILDARGS ?=
 
 ifneq ("$(wildcard ./version)","")
 	METALBOND_VERSION?=$(shell cat ./version)
@@ -17,7 +18,7 @@ all:
 
 amd64:
 	mkdir -p target
-	rm -rf target/html && cp -ra html target
+	rm -rf target/html && cp -a html target
 	cd cmd && go build -ldflags "-X github.com/onmetal/metalbond.METALBOND_VERSION=$(METALBOND_VERSION)" -o ../target/metalbond_amd64
 
 arm64:
@@ -80,7 +81,7 @@ clean:
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build $(BUILDARGS) -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.

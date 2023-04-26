@@ -1,4 +1,4 @@
-FROM golang:1.19-bullseye AS builder
+FROM golang:1.20-bullseye AS builder
 
 WORKDIR /workspace
 COPY cmd cmd
@@ -14,7 +14,7 @@ RUN make amd64
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y iproute2 ethtool wget adduser inetutils-ping ipvsadm
+RUN apt-get update && apt-get install -y iproute2 ethtool wget adduser inetutils-ping && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /workspace/target/metalbond_amd64 /usr/sbin/metalbond
 COPY --from=builder /workspace/target/html /usr/share/metalbond/html
 
