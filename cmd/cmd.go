@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -165,8 +166,25 @@ func main() {
 			}
 		}
 
-		//FIXME just a workaround!
-		time.Sleep(10 * time.Second)
+		// Wait for all peers to connect
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			connected := true
+			for _, server := range CLI.Client.Server {
+				state, err := m.PeerState(server)
+				if err != nil || state != metalbond.ESTABLISHED {
+					connected = false
+					break
+				}
+			}
+			if connected {
+				break
+			}
+			if time.Now().After(deadline) {
+				panic(errors.New("timeout waiting to connect"))
+			}
+			time.Sleep(1 * time.Second)
+		}
 
 		for _, subscription := range CLI.Client.Subscribe {
 			err := m.Subscribe(metalbond.VNI(subscription))
