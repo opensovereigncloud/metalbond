@@ -78,7 +78,7 @@ func (c *NetlinkClient) AddRoute(vni VNI, dest Destination, hop NextHop) error {
 
 	err = c.routeTable.AddNextHop(vni, dest, hop, c.mbp)
 	if err != nil {
-		return fmt.Errorf("cannot add route to internal table vni: %s dest: %s hop: %s error: %v", vni, dest, hop, err)
+		return fmt.Errorf("cannot add route to internal table vni: %d dest: %s hop: %s error: %v", vni, dest, hop, err)
 	}
 
 	route := &netlink.Route{
@@ -127,7 +127,7 @@ func (c *NetlinkClient) RemoveRoute(vni VNI, dest Destination, hop NextHop) erro
 
 	err, _ = c.routeTable.RemoveNextHop(vni, dest, hop, c.mbp)
 	if err != nil {
-		return fmt.Errorf("cannot add route to internal table vni: %s dest: %s hop: %s error: %v", vni, dest, hop, err)
+		return fmt.Errorf("cannot add route to internal table vni: %d dest: %s hop: %s error: %v", vni, dest, hop, err)
 	}
 
 	multiPath := []*netlink.NexthopInfo{}
