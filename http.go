@@ -63,14 +63,16 @@ func (j *jsonServer) getJsonRoutes() (jsonRoutes, error) {
 	for _, vni := range j.m.routeTable.GetVNIs() {
 		js.VNet[uint32(vni)] = make(map[Destination][]NextHop)
 		for dst, hops := range j.m.routeTable.GetDestinationsByVNI(vni) {
-			js.VNet[uint32(vni)][dst] = append(js.VNet[uint32(vni)][dst], hops...)
+			for _, hop := range hops {
+				js.VNet[uint32(vni)][dst] = append(js.VNet[uint32(vni)][dst], hop)
+			}
 		}
 	}
 
-	for _, hops := range js.VNet {
-		for _, hop := range hops {
-			sort.Slice(hop, func(i, j int) bool {
-				return hop[i].String() < hop[j].String()
+	for vi, _ := range js.VNet {
+		for _, hops := range js.VNet[vi] {
+			sort.Slice(hops, func(i, j int) bool {
+				return hops[i].String() < hops[j].String()
 			})
 		}
 	}
