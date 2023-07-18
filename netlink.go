@@ -141,13 +141,19 @@ func (c *NetlinkClient) RemoveRoute(vni VNI, dest Destination, hop NextHop) erro
 }
 
 func (c *NetlinkClient) createNexthopInfo(nextHop NextHop) *netlink.NexthopInfo {
+	dst := net.ParseIP(nextHop.TargetAddress.String())
 	encap := netlink.IP6tnlEncap{
-		Dst: net.ParseIP(nextHop.TargetAddress.String()),
+		Dst: dst,
 		Src: net.ParseIP("::"), // what source ip to put here? Metalbond object, m, does not contain this info yet.
 	}
 	nexthopInfo := &netlink.NexthopInfo{
 		LinkIndex: c.tunDevice.Attrs().Index,
 		Encap:     &encap,
+		Hops:      0,
+	}
+
+	if c.config.PreferNetwork != nil && c.config.PreferNetwork.Contains(dst) {
+		nexthopInfo.Hops = 99
 	}
 
 	return nexthopInfo
