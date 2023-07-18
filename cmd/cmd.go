@@ -17,6 +17,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"runtime"
@@ -50,6 +51,7 @@ var CLI struct {
 		IPv4only      bool     `help:"Receive only IPv4 routes" name:"ipv4-only"`
 		Keepalive     uint32   `help:"Keepalive Interval"`
 		Http          string   `help:"HTTP Server listen address. e.g. [::]:4712"`
+		PreferNetwork string   `help:"Prefer network routes (e.g. 2001:db8::1/52)"`
 	} `cmd:"" help:"Run MetalBond Client"`
 }
 
@@ -130,10 +132,19 @@ func main() {
 
 			log.Infof("VNI to Route Table mapping: %v", vnitablemap)
 
+			var preferNetwork *net.IPNet
+			if len(CLI.Client.PreferNetwork) > 0 {
+				_, preferNetwork, err = net.ParseCIDR(CLI.Client.PreferNetwork)
+				if err != nil {
+					log.Fatalf("invalid PreferNetwork address: %s - %v", CLI.Client.PreferNetwork, err)
+				}
+			}
+
 			client, err = metalbond.NewNetlinkClient(metalbond.NetlinkClientConfig{
-				VNITableMap: vnitablemap,
-				LinkName:    CLI.Client.Tun,
-				IPv4Only:    CLI.Client.IPv4only,
+				VNITableMap:   vnitablemap,
+				LinkName:      CLI.Client.Tun,
+				IPv4Only:      CLI.Client.IPv4only,
+				PreferNetwork: preferNetwork,
 			})
 			if err != nil {
 				log.Fatalf("Cannot create MetalBond Client: %v", err)
