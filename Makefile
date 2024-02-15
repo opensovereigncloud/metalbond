@@ -95,11 +95,11 @@ clean:
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build $(BUILDARGS) -t ${IMG} .
+	podman build $(BUILDARGS) -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	podman push ${IMG}
 
 .PHONY: deb
 deb:
