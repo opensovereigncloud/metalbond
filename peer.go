@@ -503,54 +503,66 @@ func (p *metalBondPeer) processRxKeepalive(msg msgKeepalive) {
 }
 
 func (p *metalBondPeer) processRxSubscribe(msg msgSubscribe) {
-	p.log().Debugf("processRxSubscribe %#v", msg)
-	p.mtxSubscribedVNIs.Lock()
-	defer p.mtxSubscribedVNIs.Unlock()
-	p.subscribedVNIs[msg.VNI] = true
-	if err := p.metalbond.addSubscriber(p, msg.VNI); err != nil {
-		p.log().Errorf("Failed to add subscriber: %v", err)
+	if p.GetState() == ESTABLISHED {
+		p.log().Debugf("processRxSubscribe %#v", msg)
+		p.mtxSubscribedVNIs.Lock()
+		defer p.mtxSubscribedVNIs.Unlock()
+		p.subscribedVNIs[msg.VNI] = true
+		if err := p.metalbond.addSubscriber(p, msg.VNI); err != nil {
+			p.log().Errorf("Failed to add subscriber: %v", err)
+		}
+	} else {
+		p.log().Errorf("Received Subscribe message in invalid state: %s", p.GetState().String())
 	}
 }
 
 func (p *metalBondPeer) processRxUnsubscribe(msg msgUnsubscribe) {
-	p.log().Debugf("processRxUnsubscribe %#v", msg)
-	if err := p.metalbond.removeSubscriber(p, msg.VNI); err != nil {
-		p.log().Errorf("Failed to remove subscriber: %v", err)
-	}
+	if p.GetState() == ESTABLISHED {
+		p.log().Debugf("processRxUnsubscribe %#v", msg)
+		if err := p.metalbond.removeSubscriber(p, msg.VNI); err != nil {
+			p.log().Errorf("Failed to remove subscriber: %v", err)
+		}
 
-	p.mtxSubscribedVNIs.RLock()
-	delete(p.subscribedVNIs, msg.VNI)
-	p.mtxSubscribedVNIs.RUnlock()
+		p.mtxSubscribedVNIs.RLock()
+		delete(p.subscribedVNIs, msg.VNI)
+		p.mtxSubscribedVNIs.RUnlock()
+	} else {
+		p.log().Errorf("Received Unsubscribe message in invalid state: %s", p.GetState().String())
+	}
 }
 
 func (p *metalBondPeer) processRxUpdate(msg msgUpdate) {
 	var err error
 
-	switch msg.Action {
-	case ADD:
-		err = p.receivedRoutes.AddNextHop(msg.VNI, msg.Destination, msg.NextHop, p)
-		if err != nil {
-			p.log().Errorf("Could not add received route (%v -> %v) to peer's receivedRoutes Table: %v", msg.Destination, msg.NextHop, err)
-			return
-		}
+	if p.GetState() == ESTABLISHED {
+		switch msg.Action {
+		case ADD:
+			err = p.receivedRoutes.AddNextHop(msg.VNI, msg.Destination, msg.NextHop, p)
+			if err != nil {
+				p.log().Errorf("Could not add received route (%v -> %v) to peer's receivedRoutes Table: %v", msg.Destination, msg.NextHop, err)
+				return
+			}
 
-		err = p.metalbond.addReceivedRoute(p, msg.VNI, msg.Destination, msg.NextHop)
-		if err != nil {
-			p.log().Errorf("Could not process received route UPDATE ADD: %v", err)
-		}
-	case REMOVE:
-		err, _ = p.receivedRoutes.RemoveNextHop(msg.VNI, msg.Destination, msg.NextHop, p)
-		if err != nil {
-			p.log().Errorf("Could not remove received route from peer's receivedRoutes Table: %v", err)
-			return
-		}
+			err = p.metalbond.addReceivedRoute(p, msg.VNI, msg.Destination, msg.NextHop)
+			if err != nil {
+				p.log().Errorf("Could not process received route UPDATE ADD: %v", err)
+			}
+		case REMOVE:
+			err, _ = p.receivedRoutes.RemoveNextHop(msg.VNI, msg.Destination, msg.NextHop, p)
+			if err != nil {
+				p.log().Errorf("Could not remove received route from peer's receivedRoutes Table: %v", err)
+				return
+			}
 
-		err = p.metalbond.removeReceivedRoute(p, msg.VNI, msg.Destination, msg.NextHop)
-		if err != nil {
-			p.log().Errorf("Could not process received route UPDATE REMOVE: %v", err)
+			err = p.metalbond.removeReceivedRoute(p, msg.VNI, msg.Destination, msg.NextHop)
+			if err != nil {
+				p.log().Errorf("Could not process received route UPDATE REMOVE: %v", err)
+			}
+		default:
+			p.log().Errorf("Received UPDATE message with invalid action type!")
 		}
-	default:
-		p.log().Errorf("Received UPDATE message with invalid action type!")
+	} else {
+		p.log().Errorf("Received Update message in invalid state: %s", p.GetState().String())
 	}
 }
 
