@@ -350,11 +350,11 @@ func (m *MetalBond) removeReceivedRoute(fromPeer *metalBondPeer, vni VNI, dest D
 		if err := m.distributeRouteToPeers(REMOVE, vni, dest, hop, fromPeer); err != nil {
 			m.log().Errorf("Could not distribute route to peers: %v", err)
 		}
-	}
 
-	err = m.client.RemoveRoute(vni, dest, hop)
-	if err != nil {
-		m.log().Errorf("Client.RemoveRoute call failed: %v", err)
+		err = m.client.RemoveRoute(vni, dest, hop)
+		if err != nil {
+			m.log().Errorf("Client.RemoveRoute call failed: %v", err)
+		}
 	}
 
 	return nil
