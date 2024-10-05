@@ -491,9 +491,9 @@ func (m *MetalBond) Shutdown() {
 		(*m.lis).Close()
 	}
 
-	for p := range m.peers {
-		m.unsafeRemovePeer(p)
-	}
+	//for p := range m.peers {
+	//	m.unsafeRemovePeer(p)
+	//}
 }
 
 func (m *MetalBond) log() *logrus.Entry {
