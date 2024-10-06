@@ -181,7 +181,7 @@ func main() {
 		for _, subscription := range CLI.Client.Subscribe {
 			err := m.Subscribe(metalbond.VNI(subscription))
 			if err != nil {
-				log.Fatalf("Subscription failed: %v", err)
+				log.Errorf("Subscription failed: %v", err)
 			}
 		}
 
