@@ -487,13 +487,14 @@ func (m *MetalBond) StartServer(listenAddress string) error {
 func (m *MetalBond) Shutdown() {
 	m.log().Infof("Shutting down MetalBond...")
 	m.shuttingDown = true
+
+	for _, p := range m.peers {
+		p.Reset()
+	}
+
 	if m.lis != nil {
 		(*m.lis).Close()
 	}
-
-	//for p := range m.peers {
-	//	m.unsafeRemovePeer(p)
-	//}
 }
 
 func (m *MetalBond) log() *logrus.Entry {
