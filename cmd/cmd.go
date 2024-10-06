@@ -158,14 +158,14 @@ func main() {
 			}
 		}
 
-		// Wait for all peers to connect
+		// Wait for first peer to connect
 		deadline := time.Now().Add(10 * time.Second)
 		for {
-			connected := true
+			connected := false
 			for _, server := range CLI.Client.Server {
 				state, err := m.PeerState(server)
-				if err != nil || state != metalbond.ESTABLISHED {
-					connected = false
+				if err != nil && state == metalbond.ESTABLISHED {
+					connected = true
 					break
 				}
 			}
