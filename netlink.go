@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -35,15 +36,60 @@ func NewNetlinkClient(config NetlinkClientConfig) (*NetlinkClient, error) {
 		return nil, fmt.Errorf("Cannot find tun device '%s': %v", config.LinkName, err)
 	}
 
-	// TODO: Remove all routes from route tables defined in config.VNITableMap with Protocol = METALBOND_RT_PROTO
-	// to clean up old, stale routes installed by a prior metalbond client instance
-
-	return &NetlinkClient{
+	client := &NetlinkClient{
 		config:     config,
 		tunDevice:  link,
 		routeTable: newRouteTable(),
 		mbp:        &metalBondPeer{},
-	}, nil
+	}
+
+	// Start a goroutine to periodically clean up stale routes
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for {
+			<-ticker.C
+			client.cleanupStaleRoutes()
+		}
+	}()
+
+	return client, nil
+}
+
+func (c *NetlinkClient) cleanupStaleRoutes() {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	for _, table := range c.config.VNITableMap {
+		filter := &netlink.Route{Table: table, Protocol: METALBOND_RT_PROTO}
+		routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, filter, netlink.RT_FILTER_TABLE|netlink.RT_FILTER_PROTOCOL)
+		if err != nil {
+			log.Warnf("Cannot list routes for table %d: %v", table, err)
+			continue
+		}
+		for _, route := range routes {
+			if !c.isRouteInRouteTable(route) {
+				if err := netlink.RouteDel(&route); err != nil {
+					log.Warnf("Failed to delete stale route %s from table %d: %v", route.Dst, table, err)
+				} else {
+					log.Infof("Deleted stale route %s from table %d", route.Dst, table)
+				}
+			}
+		}
+	}
+}
+
+func (c *NetlinkClient) isRouteInRouteTable(route netlink.Route) bool {
+	vnis := c.routeTable.GetVNIs()
+	for _, vni := range vnis {
+		destinations := c.routeTable.GetDestinationsByVNI(vni)
+		for dest := range destinations {
+			if dest.Prefix.String() == route.Dst.String() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (c *NetlinkClient) AddRoute(vni VNI, dest Destination, hop NextHop) error {
