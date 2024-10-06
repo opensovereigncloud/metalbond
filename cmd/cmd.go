@@ -164,7 +164,7 @@ func main() {
 			connected := false
 			for _, server := range CLI.Client.Server {
 				state, err := m.PeerState(server)
-				if err != nil && state == metalbond.ESTABLISHED {
+				if err == nil && state == metalbond.ESTABLISHED {
 					connected = true
 					break
 				}
