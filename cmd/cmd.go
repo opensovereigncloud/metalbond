@@ -6,6 +6,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/vishvananda/netlink"
 	"net"
 	"os"
 	"os/signal"
@@ -41,6 +42,7 @@ var CLI struct {
 		Keepalive     uint32   `help:"Keepalive Interval"`
 		Http          string   `help:"HTTP Server listen address. e.g. [::]:4712"`
 		PreferNetwork string   `help:"Prefer network routes (e.g. 2001:db8::1/52)"`
+		RtProto       int      `help:"Metalbond netlink.RouteProtocol, allows having multiple client populating the route table"`
 	} `cmd:"" help:"Run MetalBond Client"`
 }
 
@@ -132,12 +134,19 @@ func main() {
 				}
 			}
 
+			// rt proto defaults to 254
+			rtProto := 254
+			if CLI.Client.RtProto > 0 && CLI.Client.RtProto != rtProto {
+				rtProto = CLI.Client.RtProto
+			}
+
 			client, err = metalbond.NewNetlinkClient(metalbond.NetlinkClientConfig{
 				VNITableMap:   vnitablemap,
 				LinkName:      CLI.Client.Tun,
 				IPv4Only:      CLI.Client.IPv4only,
 				PreferNetwork: preferNetwork,
-			})
+			}, netlink.RouteProtocol(rtProto))
+
 			if err != nil {
 				log.Fatalf("Cannot create MetalBond Client: %v", err)
 			}

@@ -13,14 +13,13 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-const METALBOND_RT_PROTO netlink.RouteProtocol = 254
-
 type NetlinkClient struct {
 	config     NetlinkClientConfig
 	tunDevice  netlink.Link
 	mtx        sync.Mutex
 	routeTable routeTable
 	mbp        *metalBondPeer
+	rtProto    netlink.RouteProtocol
 }
 
 type NetlinkClientConfig struct {
@@ -30,13 +29,14 @@ type NetlinkClientConfig struct {
 	PreferNetwork *net.IPNet
 }
 
-func NewNetlinkClient(config NetlinkClientConfig) (*NetlinkClient, error) {
+func NewNetlinkClient(config NetlinkClientConfig, rtProto netlink.RouteProtocol) (*NetlinkClient, error) {
 	link, err := netlink.LinkByName(config.LinkName)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot find tun device '%s': %v", config.LinkName, err)
+		return nil, fmt.Errorf("cannot find tun device '%s': %v", config.LinkName, err)
 	}
 
 	client := &NetlinkClient{
+		rtProto:    rtProto,
 		config:     config,
 		tunDevice:  link,
 		routeTable: newRouteTable(),
@@ -61,7 +61,7 @@ func (c *NetlinkClient) cleanupStaleRoutes() {
 	defer c.mtx.Unlock()
 
 	for _, table := range c.config.VNITableMap {
-		filter := &netlink.Route{Table: table, Protocol: METALBOND_RT_PROTO}
+		filter := &netlink.Route{Table: table, Protocol: c.rtProto}
 		routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, filter, netlink.RT_FILTER_TABLE|netlink.RT_FILTER_PROTOCOL)
 		if err != nil {
 			log.Warnf("Cannot list routes for table %d: %v", table, err)
@@ -103,7 +103,7 @@ func (c *NetlinkClient) AddRoute(vni VNI, dest Destination, hop NextHop) error {
 
 	table, exists := c.config.VNITableMap[vni]
 	if !exists {
-		return fmt.Errorf("No route table ID known for given VNI")
+		return fmt.Errorf("no route table ID known for given VNI")
 	}
 
 	_, dst, err := net.ParseCIDR(dest.Prefix.String())
@@ -119,10 +119,10 @@ func (c *NetlinkClient) AddRoute(vni VNI, dest Destination, hop NextHop) error {
 	route := &netlink.Route{
 		Dst:      dst,
 		Table:    table,
-		Protocol: METALBOND_RT_PROTO,
+		Protocol: c.rtProto,
 	} // by default, the route is already installed into the kernel table without explicite specification
 
-	multiPath := []*netlink.NexthopInfo{}
+	var multiPath []*netlink.NexthopInfo
 	for _, nextHop := range c.routeTable.GetNextHopsByDestination(vni, dest) {
 		nexthopInfo := c.createNexthopInfo(nextHop)
 		multiPath = append(multiPath, nexthopInfo)
@@ -146,7 +146,7 @@ func (c *NetlinkClient) RemoveRoute(vni VNI, dest Destination, hop NextHop) erro
 
 	table, exists := c.config.VNITableMap[vni]
 	if !exists {
-		return fmt.Errorf("No route table ID known for given VNI")
+		return fmt.Errorf("no route table ID known for given VNI")
 	}
 
 	_, dst, err := net.ParseCIDR(dest.Prefix.String())
@@ -157,7 +157,7 @@ func (c *NetlinkClient) RemoveRoute(vni VNI, dest Destination, hop NextHop) erro
 	route := &netlink.Route{
 		Dst:      dst,
 		Table:    table,
-		Protocol: METALBOND_RT_PROTO,
+		Protocol: c.rtProto,
 	} // by default, the route is already installed into the kernel table without explicite specification
 
 	err, _ = c.routeTable.RemoveNextHop(vni, dest, hop, c.mbp)
@@ -165,7 +165,7 @@ func (c *NetlinkClient) RemoveRoute(vni VNI, dest Destination, hop NextHop) erro
 		return fmt.Errorf("cannot add route to internal table vni: %d dest: %s hop: %s error: %v", vni, dest, hop, err)
 	}
 
-	multiPath := []*netlink.NexthopInfo{}
+	var multiPath []*netlink.NexthopInfo
 	for _, nextHop := range c.routeTable.GetNextHopsByDestination(vni, dest) {
 		nexthopInfo := c.createNexthopInfo(nextHop)
 		multiPath = append(multiPath, nexthopInfo)
