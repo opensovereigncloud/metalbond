@@ -295,6 +295,10 @@ func (m *MetalBond) distributeRouteToPeers(action UpdateAction, vni VNI, dest De
 	return nil
 }
 
+func (m *MetalBond) GetAnnouncementsForVni(vni VNI) map[Destination][]NextHop {
+	return m.myAnnouncements.GetDestinationsByVNI(vni)
+}
+
 func (m *MetalBond) GetRoutesForVni(vni VNI) error {
 	for dest, hops := range m.routeTable.GetDestinationsByVNI(vni) {
 		for _, hop := range hops {
