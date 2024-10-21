@@ -159,6 +159,16 @@ func (m *MetalBond) Unsubscribe(vni VNI) error {
 		return fmt.Errorf("Already unsubscribed from VNI %d", vni)
 	}
 
+	for dest, nhs := range m.myAnnouncements.GetDestinationsByVNI(vni) {
+		for _, nh := range nhs {
+			if m.myAnnouncements.NextHopExists(vni, dest, nh, nil) {
+				if err, _ := m.myAnnouncements.RemoveNextHop(vni, dest, nh, nil); err != nil {
+					m.log().Errorf("Could not remove route from my announcements: %v", err)
+				}
+			}
+		}
+	}
+
 	for _, p := range m.peers {
 		if err := p.Unsubscribe(vni); err != nil {
 			m.log().Errorf("Could not unsubscribe from vni: %v", err)
