@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -32,6 +33,7 @@ func serveJsonRouteTable(m *MetalBond, listen string) {
 	http.HandleFunc("/", js.mainHandler)
 	http.HandleFunc("/routes.json", js.jsonHandler)
 	http.HandleFunc("/routes.yaml", js.yamlHandler)
+	http.Handle("/metrics", promhttp.Handler())
 
 	if err := http.ListenAndServe(listen, nil); err != nil {
 		if m != nil {

@@ -49,31 +49,34 @@ type metalBondPeer struct {
 	rxUnsubscribe chan msgUnsubscribe
 	rxUpdate      chan msgUpdate
 	wg            sync.WaitGroup
+
+	txChanCapacity           int
+	rxChanEventCapacity      int
+	rxChanDataUpdateCapacity int
+
+	maxTxChanDepth int
 }
 
-func newMetalBondPeer(
-	pconn *net.Conn,
-	remoteAddr string,
-	localIP string,
-	keepaliveInterval uint32,
-	direction ConnectionDirection,
-	metalbond *MetalBond) *metalBondPeer {
+func newMetalBondPeer(pconn *net.Conn, remoteAddr string, localIP string, txChanCapacity int, rxChanEventCapacity int, rxChanDataUpdateCapacity int, keepaliveInterval uint32, direction ConnectionDirection, metalbond *MetalBond) *metalBondPeer {
 
-	peer := metalBondPeer{
-		conn:              pconn,
-		remoteAddr:        remoteAddr,
-		localIP:           localIP,
-		direction:         direction,
-		state:             CONNECTING,
-		receivedRoutes:    newRouteTable(),
-		subscribedVNIs:    make(map[VNI]bool),
-		keepaliveInterval: keepaliveInterval,
-		metalbond:         metalbond,
+	peer := &metalBondPeer{
+		conn:                     pconn,
+		remoteAddr:               remoteAddr,
+		localIP:                  localIP,
+		direction:                direction,
+		state:                    CONNECTING,
+		receivedRoutes:           newRouteTable(),
+		subscribedVNIs:           make(map[VNI]bool),
+		keepaliveInterval:        keepaliveInterval,
+		txChanCapacity:           txChanCapacity,
+		rxChanEventCapacity:      rxChanEventCapacity,
+		rxChanDataUpdateCapacity: rxChanDataUpdateCapacity,
+		metalbond:                metalbond,
 	}
 
 	go peer.handle()
 
-	return &peer
+	return peer
 }
 
 func (p *metalBondPeer) String() string {
@@ -242,21 +245,33 @@ func (p *metalBondPeer) cleanup() {
 			}
 		}
 	}
+
+	peerID := p.remoteAddr
+	// Remove metrics associated with this peer
+	metricTxChanDepth.DeleteLabelValues(peerID)
+	metricTxChanMaxDepth.DeleteLabelValues(peerID)
+	metricRxChanHelloDepth.DeleteLabelValues(peerID)
+	metricRxChanKeepaliveDepth.DeleteLabelValues(peerID)
+	metricRxChanSubscribeDepth.DeleteLabelValues(peerID)
+	metricRxChanUnsubscribeDepth.DeleteLabelValues(peerID)
+	metricRxChanUpdateDepth.DeleteLabelValues(peerID)
+	metricSubscriptionCount.DeleteLabelValues(peerID)
+	metricRouteCount.DeleteLabelValues(peerID)
 }
 
 func (p *metalBondPeer) handle() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
-	p.txChan = make(chan []byte, 65536)
+	p.txChan = make(chan []byte, p.txChanCapacity)
 	p.shutdown = make(chan bool, 5)
 	p.keepaliveStop = make(chan bool, 5)
 	p.txChanClose = make(chan bool, 5)
-	p.rxHello = make(chan msgHello, 5)
-	p.rxKeepalive = make(chan msgKeepalive, 5)
-	p.rxSubscribe = make(chan msgSubscribe, 100)
-	p.rxUnsubscribe = make(chan msgUnsubscribe, 100)
-	p.rxUpdate = make(chan msgUpdate, 100)
+	p.rxHello = make(chan msgHello, p.rxChanEventCapacity)
+	p.rxKeepalive = make(chan msgKeepalive, p.rxChanEventCapacity)
+	p.rxSubscribe = make(chan msgSubscribe, p.rxChanDataUpdateCapacity)
+	p.rxUnsubscribe = make(chan msgUnsubscribe, p.rxChanDataUpdateCapacity)
+	p.rxUpdate = make(chan msgUpdate, p.rxChanDataUpdateCapacity)
 
 	// outgoing connections still need to be established. pconn is nil.
 	for p.conn == nil {
@@ -319,22 +334,32 @@ func (p *metalBondPeer) handle() {
 		select {
 		case msg := <-p.rxHello:
 			p.log().Debugf("Received HELLO message")
+			// Track depth of rxHello channel for monitoring
+			metricRxChanHelloDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxHello)))
 			p.processRxHello(msg)
 
 		case msg := <-p.rxKeepalive:
 			p.log().Tracef("Received KEEPALIVE message")
+			// Track depth of rxKeepalive channel for monitoring
+			metricRxChanKeepaliveDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxKeepalive)))
 			p.processRxKeepalive(msg)
 
 		case msg := <-p.rxSubscribe:
 			p.log().Debugf("Received SUBSCRIBE message")
+			// Track depth of rxSubscribe channel for monitoring
+			metricRxChanSubscribeDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxSubscribe)))
 			p.processRxSubscribe(msg)
 
 		case msg := <-p.rxUnsubscribe:
 			p.log().Debugf("Received UNSUBSCRIBE message")
+			// Track depth of rxUnsubscribe channel for monitoring
+			metricRxChanUnsubscribeDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxUnsubscribe)))
 			p.processRxUnsubscribe(msg)
 
 		case msg := <-p.rxUpdate:
 			p.log().Debugf("Received UPDATE message")
+			// Track depth of processRxUpdate channel for monitoring
+			metricRxChanUpdateDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxUpdate)))
 			p.processRxUpdate(msg)
 		case <-p.shutdown:
 			p.cleanup()
@@ -508,6 +533,10 @@ func (p *metalBondPeer) processRxSubscribe(msg msgSubscribe) {
 		p.mtxSubscribedVNIs.Lock()
 		defer p.mtxSubscribedVNIs.Unlock()
 		p.subscribedVNIs[msg.VNI] = true
+
+		// Update subscription metric per peer
+		metricSubscriptionCount.WithLabelValues(p.remoteAddr).Inc()
+
 		if err := p.metalbond.addSubscriber(p, msg.VNI); err != nil {
 			p.log().Errorf("Failed to add subscriber: %v", err)
 		}
@@ -525,6 +554,8 @@ func (p *metalBondPeer) processRxUnsubscribe(msg msgUnsubscribe) {
 
 		p.mtxSubscribedVNIs.RLock()
 		delete(p.subscribedVNIs, msg.VNI)
+		// Update subscription metric per peer
+		metricSubscriptionCount.WithLabelValues(p.remoteAddr).Dec()
 		p.mtxSubscribedVNIs.RUnlock()
 	} else {
 		p.log().Errorf("Received Unsubscribe message in invalid state: %s", p.GetState().String())
@@ -533,7 +564,6 @@ func (p *metalBondPeer) processRxUnsubscribe(msg msgUnsubscribe) {
 
 func (p *metalBondPeer) processRxUpdate(msg msgUpdate) {
 	var err error
-
 	if p.GetState() == ESTABLISHED {
 		switch msg.Action {
 		case ADD:
@@ -699,6 +729,17 @@ func (p *metalBondPeer) sendMessage(msg message) error {
 
 	hdr := []byte{1, byte(len(msgBytes) >> 8), byte(len(msgBytes) % 256), byte(msgType)}
 	pkt := append(hdr, msgBytes...)
+
+	// Track metrics
+	peerID := p.remoteAddr
+	currentDepth := len(p.txChan)
+	metricTxChanDepth.WithLabelValues(peerID).Set(float64(currentDepth))
+
+	// Update max depth if the current depth is the highest observed
+	if currentDepth > p.maxTxChanDepth {
+		p.maxTxChanDepth = currentDepth
+		metricTxChanMaxDepth.WithLabelValues(peerID).Set(float64(p.maxTxChanDepth))
+	}
 
 	p.txChan <- pkt
 
