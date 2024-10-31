@@ -142,11 +142,6 @@ func (rt *routeTable) RemoveNextHop(vni VNI, dest Destination, nh NextHop, recei
 		delete(rt.routes, vni)
 	}
 
-	// Decrement route count per peer
-	if receivedFrom != nil {
-		peerID := receivedFrom.remoteAddr
-		metricRouteCount.WithLabelValues(peerID).Dec()
-	}
 	return nil, left
 }
 
@@ -172,12 +167,6 @@ func (rt *routeTable) AddNextHop(vni VNI, dest Destination, nh NextHop, received
 	}
 
 	rt.routes[vni][dest][nh][receivedFrom] = true
-
-	// Increment route count per peer
-	if receivedFrom != nil {
-		peerID := receivedFrom.remoteAddr
-		metricRouteCount.WithLabelValues(peerID).Inc()
-	}
 
 	return nil
 }

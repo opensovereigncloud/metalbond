@@ -261,7 +261,6 @@ func (p *metalBondPeer) cleanup() {
 	metricRxChanUnsubscribeMaxDepth.DeleteLabelValues(peerID)
 	metricRxChanUpdateMaxDepth.DeleteLabelValues(peerID)
 	metricSubscriptionCount.DeleteLabelValues(peerID)
-	metricRouteCount.DeleteLabelValues(peerID)
 }
 
 func (p *metalBondPeer) handle() {

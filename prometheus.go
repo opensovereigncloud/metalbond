@@ -50,12 +50,6 @@ var (
 		Name: "metalbond_subscription_count",
 		Help: "Current number of active subscriptions per peer",
 	}, []string{"peer"})
-
-	// Metric for tracking current routes per peer
-	metricRouteCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "metalbond_route_count",
-		Help: "Current number of active routes per peer",
-	}, []string{"peer"})
 )
 
 // RegisterMetrics initializes Prometheus metrics only once
@@ -70,7 +64,6 @@ func RegisterMetrics() {
 			metricRxChanUnsubscribeMaxDepth,
 			metricRxChanUpdateMaxDepth,
 			metricSubscriptionCount,
-			metricRouteCount,
 		)
 	})
 }
