@@ -2,6 +2,7 @@ package metalbond
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sync"
 )
 
@@ -55,7 +56,7 @@ var (
 // RegisterMetrics initializes Prometheus metrics only once
 func RegisterMetrics() {
 	registerMetricsOnce.Do(func() {
-		prometheus.MustRegister(
+		metrics.Registry.MustRegister(
 			metricTxChanDepth,
 			metricTxChanMaxDepth,
 			metricRxChanHelloMaxDepth,
