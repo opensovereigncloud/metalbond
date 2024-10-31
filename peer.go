@@ -54,7 +54,12 @@ type metalBondPeer struct {
 	rxChanEventCapacity      int
 	rxChanDataUpdateCapacity int
 
-	maxTxChanDepth int
+	maxTxChanDepth               int
+	maxRxChanHelloMaxDepth       int
+	maxRxChanKeepaliveMaxDepth   int
+	maxRxChanSubscribeMaxDepth   int
+	maxRxChanUnsubscribeMaxDepth int
+	maxRxChanUpdateMaxDepth      int
 }
 
 func newMetalBondPeer(pconn *net.Conn, remoteAddr string, localIP string, txChanCapacity int, rxChanEventCapacity int, rxChanDataUpdateCapacity int, keepaliveInterval uint32, direction ConnectionDirection, metalbond *MetalBond) *metalBondPeer {
@@ -250,11 +255,11 @@ func (p *metalBondPeer) cleanup() {
 	// Remove metrics associated with this peer
 	metricTxChanDepth.DeleteLabelValues(peerID)
 	metricTxChanMaxDepth.DeleteLabelValues(peerID)
-	metricRxChanHelloDepth.DeleteLabelValues(peerID)
-	metricRxChanKeepaliveDepth.DeleteLabelValues(peerID)
-	metricRxChanSubscribeDepth.DeleteLabelValues(peerID)
-	metricRxChanUnsubscribeDepth.DeleteLabelValues(peerID)
-	metricRxChanUpdateDepth.DeleteLabelValues(peerID)
+	metricRxChanHelloMaxDepth.DeleteLabelValues(peerID)
+	metricRxChanKeepaliveMaxDepth.DeleteLabelValues(peerID)
+	metricRxChanSubscribeMaxDepth.DeleteLabelValues(peerID)
+	metricRxChanUnsubscribeMaxDepth.DeleteLabelValues(peerID)
+	metricRxChanUpdateMaxDepth.DeleteLabelValues(peerID)
 	metricSubscriptionCount.DeleteLabelValues(peerID)
 	metricRouteCount.DeleteLabelValues(peerID)
 }
@@ -335,31 +340,51 @@ func (p *metalBondPeer) handle() {
 		case msg := <-p.rxHello:
 			p.log().Debugf("Received HELLO message")
 			// Track depth of rxHello channel for monitoring
-			metricRxChanHelloDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxHello)))
+			currentDepth := len(p.rxHello)
+			if currentDepth > p.maxRxChanHelloMaxDepth {
+				p.maxRxChanHelloMaxDepth = currentDepth
+				metricRxChanHelloMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanHelloMaxDepth))
+			}
 			p.processRxHello(msg)
 
 		case msg := <-p.rxKeepalive:
 			p.log().Tracef("Received KEEPALIVE message")
 			// Track depth of rxKeepalive channel for monitoring
-			metricRxChanKeepaliveDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxKeepalive)))
+			currentDepth := len(p.rxKeepalive)
+			if currentDepth > p.maxRxChanKeepaliveMaxDepth {
+				p.maxRxChanKeepaliveMaxDepth = currentDepth
+				metricRxChanHelloMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanKeepaliveMaxDepth))
+			}
 			p.processRxKeepalive(msg)
 
 		case msg := <-p.rxSubscribe:
 			p.log().Debugf("Received SUBSCRIBE message")
 			// Track depth of rxSubscribe channel for monitoring
-			metricRxChanSubscribeDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxSubscribe)))
+			currentDepth := len(p.rxSubscribe)
+			if currentDepth > p.maxRxChanSubscribeMaxDepth {
+				p.maxRxChanSubscribeMaxDepth = currentDepth
+				metricRxChanHelloMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanSubscribeMaxDepth))
+			}
 			p.processRxSubscribe(msg)
 
 		case msg := <-p.rxUnsubscribe:
 			p.log().Debugf("Received UNSUBSCRIBE message")
 			// Track depth of rxUnsubscribe channel for monitoring
-			metricRxChanUnsubscribeDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxUnsubscribe)))
+			currentDepth := len(p.rxUnsubscribe)
+			if currentDepth > p.maxRxChanUnsubscribeMaxDepth {
+				p.maxRxChanUnsubscribeMaxDepth = currentDepth
+				metricRxChanHelloMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanUnsubscribeMaxDepth))
+			}
 			p.processRxUnsubscribe(msg)
 
 		case msg := <-p.rxUpdate:
 			p.log().Debugf("Received UPDATE message")
 			// Track depth of processRxUpdate channel for monitoring
-			metricRxChanUpdateDepth.WithLabelValues(p.remoteAddr).Set(float64(len(p.rxUpdate)))
+			currentDepth := len(p.rxUpdate)
+			if currentDepth > p.maxRxChanUpdateMaxDepth {
+				p.maxRxChanUpdateMaxDepth = currentDepth
+				metricRxChanHelloMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanUpdateMaxDepth))
+			}
 			p.processRxUpdate(msg)
 		case <-p.shutdown:
 			p.cleanup()

@@ -20,28 +20,28 @@ var (
 		Help: "Maximum depth of txChan observed per peer",
 	}, []string{"peer"})
 
-	metricRxChanHelloDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	metricRxChanHelloMaxDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metalbond_rx_chan_hello_depth",
 		Help: "Current depth of rxChan for event HELLO per peer",
 	}, []string{"peer"})
 
-	metricRxChanKeepaliveDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "metalbond_rx_chan_keepalive_depth",
+	metricRxChanKeepaliveMaxDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metalbond_rx_chan_keepalive_max_depth",
 		Help: "Current depth of rxChan for event Keepalive per peer",
 	}, []string{"peer"})
 
-	metricRxChanSubscribeDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "metalbond_rx_chan_subscribe_depth",
+	metricRxChanSubscribeMaxDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metalbond_rx_chan_subscribe_max_depth",
 		Help: "Current depth of rxChan for event Subscribe per peer",
 	}, []string{"peer"})
 
-	metricRxChanUnsubscribeDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "metalbond_rx_chan_unsubscribe_depth",
+	metricRxChanUnsubscribeMaxDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metalbond_rx_chan_unsubscribe_max_depth",
 		Help: "Current depth of rxChan for event Unsubscribe per peer",
 	}, []string{"peer"})
 
-	metricRxChanUpdateDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "metalbond_rx_chan_update_depth",
+	metricRxChanUpdateMaxDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metalbond_rx_chan_update_max_depth",
 		Help: "Current depth of rxChan for event Update per peer",
 	}, []string{"peer"})
 
@@ -64,11 +64,11 @@ func RegisterMetrics() {
 		prometheus.MustRegister(
 			metricTxChanDepth,
 			metricTxChanMaxDepth,
-			metricRxChanHelloDepth,
-			metricRxChanKeepaliveDepth,
-			metricRxChanSubscribeDepth,
-			metricRxChanUnsubscribeDepth,
-			metricRxChanUpdateDepth,
+			metricRxChanHelloMaxDepth,
+			metricRxChanKeepaliveMaxDepth,
+			metricRxChanSubscribeMaxDepth,
+			metricRxChanUnsubscribeMaxDepth,
+			metricRxChanUpdateMaxDepth,
 			metricSubscriptionCount,
 			metricRouteCount,
 		)
