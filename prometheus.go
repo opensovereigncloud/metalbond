@@ -21,7 +21,7 @@ var (
 	}, []string{"peer"})
 
 	metricRxChanHelloMaxDepth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "metalbond_rx_chan_hello_depth",
+		Name: "metalbond_rx_chan_hello_max_depth",
 		Help: "Current depth of rxChan for event HELLO per peer",
 	}, []string{"peer"})
 
