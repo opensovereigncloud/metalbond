@@ -101,6 +101,18 @@ func (m *MetalBond) unsafeRemovePeer(addr string) {
 	}
 }
 
+func (m *MetalBond) ResetPeer(addr string) {
+	m.log().Infof("Resetting peer %s", addr)
+	m.mtxPeers.RLock()
+	p, exists := m.peers[addr]
+	m.mtxPeers.RUnlock()
+	if !exists {
+		m.log().Errorf("Peer %s does not exist", addr)
+	} else {
+		go p.Reset()
+	}
+}
+
 func (m *MetalBond) PeerState(addr string) (ConnectionState, error) {
 	m.mtxPeers.RLock()
 	defer m.mtxPeers.RUnlock()
