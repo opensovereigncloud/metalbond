@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sort"
 	"text/template"
 	"time"
@@ -31,7 +30,7 @@ func serveJsonRouteTable(m *MetalBond, listen string) {
 		m: m,
 	}
 
-	metricsHandler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{
+	metricsHandler := promhttp.HandlerFor(metricsGatherer, promhttp.HandlerOpts{
 		ErrorHandling: promhttp.HTTPErrorOnError,
 	})
 

@@ -46,7 +46,8 @@ func NewMetalBond(config Config, client Client) *MetalBond {
 	}
 
 	registerer := prometheus.DefaultRegisterer
-	RegisterMetrics(registerer)
+	gatherer := prometheus.DefaultGatherer
+	RegisterMetrics(registerer, gatherer)
 
 	m := MetalBond{
 		routeTable:        newRouteTable(),

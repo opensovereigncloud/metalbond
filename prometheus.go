@@ -7,6 +7,7 @@ import (
 
 // Ensure metrics are registered only once
 var registerMetricsOnce sync.Once
+var metricsGatherer prometheus.Gatherer
 
 // Define metrics globally
 var (
@@ -53,8 +54,9 @@ var (
 )
 
 // RegisterMetrics initializes Prometheus metrics only once
-func RegisterMetrics(registerer prometheus.Registerer) {
+func RegisterMetrics(registerer prometheus.Registerer, gatherer prometheus.Gatherer) {
 	registerMetricsOnce.Do(func() {
+		metricsGatherer = gatherer
 		registerer.MustRegister(
 			metricTxChanDepth,
 			metricTxChanMaxDepth,
