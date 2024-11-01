@@ -252,15 +252,16 @@ func (p *metalBondPeer) cleanup() {
 	}
 
 	peerID := p.remoteAddr
+	localID := p.localIP
 	// Remove metrics associated with this peer
-	metricTxChanDepth.DeleteLabelValues(peerID)
-	metricTxChanMaxDepth.DeleteLabelValues(peerID)
-	metricRxChanHelloMaxDepth.DeleteLabelValues(peerID)
-	metricRxChanKeepaliveMaxDepth.DeleteLabelValues(peerID)
-	metricRxChanSubscribeMaxDepth.DeleteLabelValues(peerID)
-	metricRxChanUnsubscribeMaxDepth.DeleteLabelValues(peerID)
-	metricRxChanUpdateMaxDepth.DeleteLabelValues(peerID)
-	metricSubscriptionCount.DeleteLabelValues(peerID)
+	metricTxChanDepth.DeleteLabelValues(localID, peerID)
+	metricTxChanMaxDepth.DeleteLabelValues(localID, peerID)
+	metricRxChanHelloMaxDepth.DeleteLabelValues(localID, peerID)
+	metricRxChanKeepaliveMaxDepth.DeleteLabelValues(localID, peerID)
+	metricRxChanSubscribeMaxDepth.DeleteLabelValues(localID, peerID)
+	metricRxChanUnsubscribeMaxDepth.DeleteLabelValues(localID, peerID)
+	metricRxChanUpdateMaxDepth.DeleteLabelValues(localID, peerID)
+	metricSubscriptionCount.DeleteLabelValues(localID, peerID)
 }
 
 func (p *metalBondPeer) handle() {
@@ -342,7 +343,7 @@ func (p *metalBondPeer) handle() {
 			currentDepth := len(p.rxHello)
 			if currentDepth > p.maxRxChanHelloMaxDepth {
 				p.maxRxChanHelloMaxDepth = currentDepth
-				metricRxChanHelloMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanHelloMaxDepth))
+				metricRxChanHelloMaxDepth.WithLabelValues(p.localIP, p.remoteAddr).Set(float64(p.maxRxChanHelloMaxDepth))
 			}
 			p.processRxHello(msg)
 
@@ -352,7 +353,7 @@ func (p *metalBondPeer) handle() {
 			currentDepth := len(p.rxKeepalive)
 			if currentDepth > p.maxRxChanKeepaliveMaxDepth {
 				p.maxRxChanKeepaliveMaxDepth = currentDepth
-				metricRxChanKeepaliveMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanKeepaliveMaxDepth))
+				metricRxChanKeepaliveMaxDepth.WithLabelValues(p.localIP, p.remoteAddr).Set(float64(p.maxRxChanKeepaliveMaxDepth))
 			}
 			p.processRxKeepalive(msg)
 
@@ -362,7 +363,7 @@ func (p *metalBondPeer) handle() {
 			currentDepth := len(p.rxSubscribe)
 			if currentDepth > p.maxRxChanSubscribeMaxDepth {
 				p.maxRxChanSubscribeMaxDepth = currentDepth
-				metricRxChanSubscribeMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanSubscribeMaxDepth))
+				metricRxChanSubscribeMaxDepth.WithLabelValues(p.localIP, p.remoteAddr).Set(float64(p.maxRxChanSubscribeMaxDepth))
 			}
 			p.processRxSubscribe(msg)
 
@@ -372,7 +373,7 @@ func (p *metalBondPeer) handle() {
 			currentDepth := len(p.rxUnsubscribe)
 			if currentDepth > p.maxRxChanUnsubscribeMaxDepth {
 				p.maxRxChanUnsubscribeMaxDepth = currentDepth
-				metricRxChanUnsubscribeMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanUnsubscribeMaxDepth))
+				metricRxChanUnsubscribeMaxDepth.WithLabelValues(p.localIP, p.remoteAddr).Set(float64(p.maxRxChanUnsubscribeMaxDepth))
 			}
 			p.processRxUnsubscribe(msg)
 
@@ -382,7 +383,7 @@ func (p *metalBondPeer) handle() {
 			currentDepth := len(p.rxUpdate)
 			if currentDepth > p.maxRxChanUpdateMaxDepth {
 				p.maxRxChanUpdateMaxDepth = currentDepth
-				metricRxChanUpdateMaxDepth.WithLabelValues(p.remoteAddr).Set(float64(p.maxRxChanUpdateMaxDepth))
+				metricRxChanUpdateMaxDepth.WithLabelValues(p.localIP, p.remoteAddr).Set(float64(p.maxRxChanUpdateMaxDepth))
 			}
 			p.processRxUpdate(msg)
 		case <-p.shutdown:
@@ -559,7 +560,7 @@ func (p *metalBondPeer) processRxSubscribe(msg msgSubscribe) {
 		p.subscribedVNIs[msg.VNI] = true
 
 		// Update subscription metric per peer
-		metricSubscriptionCount.WithLabelValues(p.remoteAddr).Inc()
+		metricSubscriptionCount.WithLabelValues(p.localIP, p.remoteAddr).Inc()
 
 		if err := p.metalbond.addSubscriber(p, msg.VNI); err != nil {
 			p.log().Errorf("Failed to add subscriber: %v", err)
@@ -579,7 +580,7 @@ func (p *metalBondPeer) processRxUnsubscribe(msg msgUnsubscribe) {
 		p.mtxSubscribedVNIs.RLock()
 		delete(p.subscribedVNIs, msg.VNI)
 		// Update subscription metric per peer
-		metricSubscriptionCount.WithLabelValues(p.remoteAddr).Dec()
+		metricSubscriptionCount.WithLabelValues(p.localIP, p.remoteAddr).Dec()
 		p.mtxSubscribedVNIs.RUnlock()
 	} else {
 		p.log().Errorf("Received Unsubscribe message in invalid state: %s", p.GetState().String())
@@ -756,13 +757,14 @@ func (p *metalBondPeer) sendMessage(msg message) error {
 
 	// Track metrics
 	peerID := p.remoteAddr
+	localID := p.localIP
 	currentDepth := len(p.txChan)
-	metricTxChanDepth.WithLabelValues(peerID).Set(float64(currentDepth))
+	metricTxChanDepth.WithLabelValues(localID, peerID).Set(float64(currentDepth))
 
 	// Update max depth if the current depth is the highest observed
 	if currentDepth > p.maxTxChanDepth {
 		p.maxTxChanDepth = currentDepth
-		metricTxChanMaxDepth.WithLabelValues(peerID).Set(float64(p.maxTxChanDepth))
+		metricTxChanMaxDepth.WithLabelValues(localID, peerID).Set(float64(p.maxTxChanDepth))
 	}
 
 	p.txChan <- pkt

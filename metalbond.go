@@ -5,6 +5,7 @@ package metalbond
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"sync"
 	"time"
@@ -44,7 +45,8 @@ func NewMetalBond(config Config, client Client) *MetalBond {
 		config.KeepaliveInterval = 5
 	}
 
-	RegisterMetrics()
+	registerer := prometheus.DefaultRegisterer
+	RegisterMetrics(registerer)
 
 	m := MetalBond{
 		routeTable:        newRouteTable(),
