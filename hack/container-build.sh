@@ -12,7 +12,7 @@ CONTAINER_CLI=${CONTAINER_CLI:-docker}
 
 cd "$GOPATH" || exit
 
-img_mtr_path=$1    # e.g. "osc/onmetal/volumepoollet"
+img_mtr_path=$1    # e.g. "osc/ironcore-dev/volumepoollet"
 commit=$2          # "dev", branch name, or version tag
 docker_target=$3   # e.g. "volumepoollet", "volumebroker", etc.
 
