@@ -12,7 +12,6 @@ variables:
     - docker
     - pes
     - osc
-    - ffm
   before_script:
     - mkdir -p ${GOPATH}/src/${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
     - rm -rf ${GOPATH}/src/${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
