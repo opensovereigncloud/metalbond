@@ -1,0 +1,12 @@
+team: iaas
+assignees:
+  - "benjamin.alpert"
+cveLabels:
+  - "type::3-cve"
+  - "stream::infra-development"
+  - "Component: Networking"
+  - "why::Security"
+  - "squad::Networking"
+dueDays: 13
+cve:
+  - repository: osc/upstream/ironcore-dev/metalbond

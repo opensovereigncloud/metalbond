@@ -1,5 +1,7 @@
+---
 stages:
   - build
+  - post-processing
 
 variables:
   GOPRIVATE: "gitlab.devops.telekom.de"
@@ -18,6 +20,7 @@ variables:
     - mv $CI_PROJECT_DIR ${GOPATH}/src/${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
     - mkdir -p $CI_PROJECT_DIR
     - cd ${GOPATH}/src/${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - ./hack/git-config.sh
 
 build-dev:
   extends: .defaults_template
@@ -52,3 +55,11 @@ build-tag:
     - /^v(\d+)\.(\d+).*$/
   except:
     - branches
+
+include:
+  - component: 'gitlab.devops.telekom.de/cas-devs/osc/common/pipeline-community/components/mtr/configure-repo@stable-v2'
+    inputs:
+      image-list-type: 'none'
+      version: 'stable-v2'
+      stage: 'post-processing'
+
