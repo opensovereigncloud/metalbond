@@ -87,6 +87,20 @@ func (m *MetalBond) RemovePeer(addr string) error {
 	return m.unsafeRemovePeer(addr)
 }
 
+func (m *MetalBond) GetPeerID(addr string) (string, error) {
+	m.log().Debugf("GetPeerID %s", addr)
+	m.mtxPeers.RLock()
+	p, exists := m.peers[addr]
+	m.mtxPeers.RUnlock()
+
+	if !exists {
+		m.log().Errorf("Peer %s does not exist", addr)
+		return "", nil
+	}
+
+	return p.id, nil
+}
+
 func (m *MetalBond) unsafeRemovePeer(addr string) error {
 	m.log().Infof("Removing peer %s", addr)
 	m.mtxPeers.RLock()
