@@ -314,6 +314,13 @@ func (p *metalBondPeer) cleanup() {
 func (p *metalBondPeer) handle() {
 	p.wg.Add(1)
 	defer func() {
+		// Close connection owned by handle()
+		if p.conn != nil {
+			p.log().Debug("handle: closing TCP connection")
+			if err := (*p.conn).Close(); err != nil {
+				p.log().Infof("handle: close returned error (may be already closed): %v", err)
+			}
+		}
 		p.log().Infof("handle done")
 		p.wg.Done()
 	}()
@@ -745,18 +752,6 @@ func (p *metalBondPeer) Close() {
 		p.setState(CLOSED)
 	}
 
-	// Force close the underlying connection to unblock any I/O operations.
-	if p.conn != nil {
-		// fix for deadlock in rxLoop while connection is closed
-		p.stopRxLoop = true
-		time.Sleep(1 * time.Second)
-
-		err := (*p.conn).Close()
-		if err != nil {
-			p.log().Errorf("Failed to close connection in close: %v", err)
-		}
-	}
-
 	// Signal the goroutines to exit.
 	p.txChanClose <- true
 	p.shutdown <- true
@@ -773,15 +768,9 @@ func (p *metalBondPeer) Reset() {
 	p.log().Debugf("Reset")
 
 	p.mtxReset.Lock()
-	// fix for deadlock in rxLoop while connection is closed
+	// fix for deadlock in rxLoop allow the rxLoop to exit during for loops
 	p.stopRxLoop = true
 	time.Sleep(1 * time.Second)
-
-	if p.conn != nil {
-		if err := (*p.conn).Close(); err != nil {
-			p.log().Errorf("Failed to close connection in reset: %v", err)
-		}
-	}
 	p.mtxReset.Unlock()
 
 	if p.manuallyRemoved {
@@ -978,10 +967,7 @@ func (p *metalBondPeer) txLoop() {
 			}
 
 		case <-p.txChanClose:
-			p.log().Infof("Closing TCP connection in txLoop")
-			if p.conn != nil {
-				(*p.conn).Close()
-			}
+			p.log().Infof("txLoop: received shutdown signal, exiting")
 			return
 		}
 	}

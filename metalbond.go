@@ -98,6 +98,11 @@ func (m *MetalBond) unsafeRemovePeer(addr string) error {
 	}
 
 	p.manuallyRemoved = true
+
+	// fix for deadlock in rxLoop allow the rxLoop to exit during for loops
+	p.stopRxLoop = true
+	time.Sleep(1 * time.Second)
+
 	p.Close() // signals all peer loops to exit
 
 	// Wait with a timeout of 30 seconds:
