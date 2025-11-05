@@ -196,7 +196,7 @@ func main() {
 		metalbond.SetMetricRxChanEventCapacity(rxChanEventCapacity)
 
 		rxChanDataUpdateCapacity := 50
-		if CLI.Client.RxChanEventCapacity > 0 {
+		if CLI.Client.RxChanDataUpdateCapacity > 0 {
 			rxChanDataUpdateCapacity = CLI.Client.RxChanDataUpdateCapacity
 		}
 		metalbond.SetMetricRxChanDataUpdateCapacity(rxChanDataUpdateCapacity)
